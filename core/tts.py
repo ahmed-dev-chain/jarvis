@@ -1,25 +1,43 @@
-import pyttsx3
-import threading
-import queue
+import os
+import time
+from gtts import gTTS
+import pygame
+from core.utils import silence_stderr
 
 class TTSREngine:
     def __init__(self):
-        self.engine = pyttsx3.init()
-        self.voices = self.engine.getProperty('voices')
-        self.engine.setProperty('voice', self.voices[0].id)
-        self.engine.setProperty('rate', 170)
-        self.stop_requested = False
-
-    def _speak(self, text):
-        print(f"Jarvis: {text}")
-        self.engine.say(text)
-        self.engine.runAndWait()
+        # Silence ALSA noise during pygame initialization
+        with silence_stderr():
+            pygame.mixer.init()
+        self.output_file = "speech.mp3"
 
     def speak(self, text):
-        self._speak(text)
+        print(f"Jarvis: {text}")
+        try:
+            # Generate speech file using gTTS
+            tts = gTTS(text=text, lang='en')
+            tts.save(self.output_file)
+
+            # Play the file using pygame
+            pygame.mixer.music.load(self.output_file)
+            pygame.mixer.music.play()
+
+            # Wait for playback to finish
+            while pygame.mixer.music.get_busy():
+                time.sleep(0.1)
+
+            # Unload before deleting
+            pygame.mixer.music.unload()
+            
+            # Clean up the temporary file
+            if os.path.exists(self.output_file):
+                os.remove(self.output_file)
+
+        except Exception as e:
+            print(f"TTS Error: {e}")
 
     def stop(self):
-        self.engine.stop()
+        pygame.mixer.music.stop()
 
 tts_engine = TTSREngine()
 
